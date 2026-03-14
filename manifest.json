@@ -1,6 +1,6 @@
 {
-  "name": "PubCry",
-  "short_name": "PubCry",
+  "name": "Pub Cry",
+  "short_name": "Pub Cry",
   "description": "Far Cry for pubs – explore London, visit pubs and tube stops to reveal the map.",
   "start_url": "/",
   "display": "standalone",

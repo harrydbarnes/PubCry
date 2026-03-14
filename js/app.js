@@ -185,6 +185,176 @@ class PubCryApp {
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => this._showResetModal());
+
+    const verifyBtn = document.getElementById('verify-btn');
+    const verifyInput = document.getElementById('verify-image-input');
+
+    if (verifyBtn && verifyInput) {
+      verifyBtn.addEventListener('click', () => verifyInput.click());
+      verifyInput.addEventListener('change', (e) => this._handleImageVerification(e));
+    }
+  }
+
+  // ── Image Verification ────────────────────────────────────────────────────────
+
+  async _handleImageVerification(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show loading status
+    const statusEl = document.getElementById('verification-status');
+    const verifyBtn = document.getElementById('verify-btn');
+
+    if (statusEl) {
+      statusEl.textContent = 'Verifying...';
+      statusEl.classList.remove('hidden');
+    }
+    if (verifyBtn) verifyBtn.style.display = 'none';
+
+    let objectUrl = null;
+    try {
+      // Load image
+      const image = new Image();
+      const imageLoadPromise = new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+      objectUrl = URL.createObjectURL(file);
+      image.src = objectUrl;
+      await imageLoadPromise;
+
+      // Pass to verification logic
+      await this._verifyImage(image);
+    } catch (err) {
+      console.error("Verification failed:", err);
+      if (statusEl) {
+        statusEl.textContent = 'Verification failed. Try again.';
+        setTimeout(() => statusEl.classList.add('hidden'), 3000);
+      }
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      // Reset input so the same file can be selected again
+      event.target.value = '';
+      if (verifyBtn) verifyBtn.style.display = 'inline-block';
+    }
+  }
+
+  async _verifyImage(image) {
+    const statusEl = document.getElementById('verification-status');
+    const locationId = this.activeTimerId;
+    if (!locationId) return;
+
+    const loc = this._findById(locationId);
+
+    try {
+      if (statusEl) statusEl.textContent = 'Scanning image with AI...';
+
+      const isPubOrPint = await this._verifyWithAI(image);
+
+      if (isPubOrPint) {
+        if (statusEl) {
+          statusEl.textContent = 'AI Verification Passed!';
+          setTimeout(() => statusEl.classList.add('hidden'), 2000);
+        }
+        this._discoverLocation(loc);
+        return;
+      }
+
+      // Fallback to OCR if AI fails
+      if (statusEl) statusEl.textContent = 'Scanning receipt text...';
+      const isReceipt = await this._verifyWithOCR(image, loc);
+
+      if (isReceipt) {
+        if (statusEl) {
+          statusEl.textContent = 'Receipt Verification Passed!';
+          setTimeout(() => statusEl.classList.add('hidden'), 2000);
+        }
+        this._discoverLocation(loc);
+        return;
+      }
+
+      if (statusEl) {
+        statusEl.textContent = 'Verification failed. Not a pint or receipt.';
+        setTimeout(() => statusEl.classList.add('hidden'), 3000);
+      }
+    } catch (err) {
+      console.error("Verification error:", err);
+      if (statusEl) {
+        statusEl.textContent = 'Verification error occurred.';
+        setTimeout(() => statusEl.classList.add('hidden'), 3000);
+      }
+    }
+  }
+
+  async _verifyWithAI(image) {
+    try {
+      // Use the pre-trained mobilenet model
+      const model = await mobilenet.load();
+      const predictions = await model.classify(image);
+
+      const pubKeywords = ["beer", "glass", "cup", "goblet", "mug", "ale", "lager", "pint"];
+
+      for (const prediction of predictions) {
+        const className = prediction.className.toLowerCase();
+        for (const keyword of pubKeywords) {
+          if (className.includes(keyword)) {
+            console.log(`AI matched keyword '${keyword}' in class '${className}' (prob: ${prediction.probability})`);
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("AI scanning error:", error);
+      return false;
+    }
+  }
+
+  async _verifyWithOCR(image, location) {
+    try {
+      const result = await Tesseract.recognize(image, 'eng');
+      const text = result.data.text.toLowerCase();
+      console.log("OCR Extracted Text:\n", text);
+
+      // 1. Check for dates
+      // Simple regex for common UK receipt dates: DD/MM/YY, DD/MM/YYYY, DD-MM-YY, etc.
+      const dateRegex = /\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/;
+      const hasDate = dateRegex.test(text);
+
+      // 2. Check for pub names, addresses, or generic keywords
+      // Make location name lowercase and escape regex characters just in case
+      const locName = location.name.toLowerCase();
+      const locAddress = location.address ? location.address.toLowerCase() : '';
+
+      const pubKeywords = ["pint", "ale", "lager", "pub", "bar", "drinks", "draught"];
+
+      let hasKeyword = false;
+
+      // Match location name
+      if (text.includes(locName)) {
+        hasKeyword = true;
+      }
+
+      // Match location address
+      if (!hasKeyword && locAddress && text.includes(locAddress)) {
+        hasKeyword = true;
+      }
+
+      // Match generic keywords
+      if (!hasKeyword) {
+        for (const keyword of pubKeywords) {
+          if (text.includes(keyword)) {
+            hasKeyword = true;
+            break;
+          }
+        }
+      }
+
+      return hasDate && hasKeyword;
+    } catch (error) {
+      console.error("OCR scanning error:", error);
+      return false;
+    }
   }
 
   _dismissWelcome () {
@@ -356,6 +526,18 @@ class PubCryApp {
     document.getElementById('timer-name').textContent  = timer.location.name;
     document.getElementById('timer-fill').style.width  = pct + '%';
     document.getElementById('timer-label').textContent = `${eMin}:${eSec} / ${tMin}:${tSec}`;
+
+    // Update Verification UI
+    const verifyBtn = document.getElementById('verify-btn');
+    if (verifyBtn) {
+      // Check if location is a pub by seeing if it exists in PUB_DATA (timer.location may not have 'type')
+      const isPub = PUB_DATA.some(p => p.id === locationId);
+      if (isPub) {
+        verifyBtn.style.display = 'inline-block';
+      } else {
+        verifyBtn.style.display = 'none';
+      }
+    }
 
     el.classList.remove('hidden');
   }

@@ -19,6 +19,9 @@
   },
   "homepage": "https://github.com/harrydbarnes/PubCry#readme",
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "@tensorflow-models/mobilenet": "^2.1.1",
+    "@tensorflow/tfjs": "^4.22.0",
+    "leaflet": "^1.9.4",
+    "tesseract.js": "^7.0.0"
   }
 }
