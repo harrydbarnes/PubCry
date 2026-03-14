@@ -88,7 +88,21 @@
     <!-- ── Map controls ── -->
     <div class="map-controls">
       <button id="locate-btn" class="map-btn" title="Centre on me" aria-label="Centre map on my location">⊕</button>
+      <button id="badges-btn" class="map-btn" title="View Badges" aria-label="View Badges">🏅</button>
       <button id="reset-btn" class="map-btn map-btn-danger" title="Reset progress" aria-label="Reset all progress">↺</button>
+    </div>
+
+    <!-- ── Profile / Badges Modal ── -->
+    <div id="profile-modal" class="hidden">
+      <div class="profile-box">
+        <div class="profile-header">
+          <div class="profile-title">YOUR BADGES</div>
+          <button id="profile-close-btn" class="btn-close">×</button>
+        </div>
+        <div class="profile-crawls" id="profile-crawls-list">
+          <!-- Crawl badges injected here by JS -->
+        </div>
+      </div>
     </div>
 
     <!-- ── Legend ── -->

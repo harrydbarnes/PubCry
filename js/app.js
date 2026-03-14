@@ -1,6 +1,6 @@
 'use strict';
 
-/* global L, PUB_DATA, TUBE_DATA */
+/* global L, PUB_DATA, TUBE_DATA, CRAWL_DATA */
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -29,8 +29,10 @@ class PubCryApp {
     /** @type {number|null} */         this.watchId       = null;
     /** @type {number|null} */         this.tickId        = null;
     /** @type {string|null} */         this.activeTimerId = null;
+    /** @type {Set<string>} */         this.unlockedCrawls= new Set();
 
     this._loadState();
+    this._checkCrawls(true); // check for any retroactive unlocks on load
     this._initMap();
     this._initFog();
     this._initMarkers();
@@ -45,6 +47,7 @@ class PubCryApp {
       if (raw) {
         const state = JSON.parse(raw);
         this.discovered = new Set(state.discovered || []);
+        this.unlockedCrawls = new Set(state.unlockedCrawls || []);
       }
     } catch (_) { /* ignore */ }
   }
@@ -52,7 +55,8 @@ class PubCryApp {
   _saveState () {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        discovered: [...this.discovered]
+        discovered: [...this.discovered],
+        unlockedCrawls: [...this.unlockedCrawls]
       }));
     } catch (_) { /* ignore */ }
   }
@@ -185,6 +189,9 @@ class PubCryApp {
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => this._showResetModal());
+
+    document.getElementById('badges-btn').addEventListener('click', () => this._showProfileModal());
+    document.getElementById('profile-close-btn').addEventListener('click', () => this._hideProfileModal());
   }
 
   _dismissWelcome () {
@@ -303,6 +310,40 @@ class PubCryApp {
 
     this._showNotification(loc.name);
     this._updateStats();
+    this._checkCrawls();
+  }
+
+  _checkCrawls (silent = false) {
+    if (typeof CRAWL_DATA === 'undefined') return;
+
+    for (const crawl of CRAWL_DATA) {
+      if (this.unlockedCrawls.has(crawl.id)) continue;
+
+      const isUnlocked = crawl.required_pubs.every(pubId => this.discovered.has(pubId));
+      if (isUnlocked) {
+        this.unlockedCrawls.add(crawl.id);
+        this._saveState();
+        if (!silent) {
+          setTimeout(() => this._showBadgeNotification(crawl), 4000); // Wait for location notification
+        }
+      }
+    }
+  }
+
+  _showBadgeNotification (crawl) {
+    const el = document.getElementById('discovery-notification');
+    el.querySelector('.notif-badge').textContent = 'BADGE UNLOCKED';
+    el.querySelector('.notif-name').textContent = crawl.badge + ' ' + crawl.title;
+    el.classList.remove('hidden');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+    setTimeout(() => {
+      el.classList.remove('visible');
+      setTimeout(() => {
+        el.classList.add('hidden');
+        // Reset text
+        el.querySelector('.notif-badge').textContent = 'AREA REVEALED';
+      }, 420);
+    }, 4000);
   }
 
   // ── User marker ───────────────────────────────────────────────────────────────
@@ -382,6 +423,39 @@ class PubCryApp {
     document.getElementById('location-status').classList.add('hidden');
   }
 
+  // ── Profile / Badges UI ────────────────────────────────────────────────────────
+
+  _showProfileModal () {
+    const listEl = document.getElementById('profile-crawls-list');
+    listEl.innerHTML = ''; // clear
+
+    if (typeof CRAWL_DATA !== 'undefined') {
+      CRAWL_DATA.forEach(crawl => {
+        const isUnlocked = this.unlockedCrawls.has(crawl.id);
+        const discoveredCount = crawl.required_pubs.filter(pid => this.discovered.has(pid)).length;
+        const totalCount = crawl.required_pubs.length;
+
+        const item = document.createElement('div');
+        item.className = `crawl-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+        item.innerHTML = `
+          <div class="crawl-badge">${isUnlocked ? crawl.badge : '🔒'}</div>
+          <div class="crawl-info">
+            <div class="crawl-title">${crawl.title}</div>
+            <div class="crawl-desc">${crawl.description}</div>
+            <div class="crawl-progress">${isUnlocked ? 'COMPLETED' : `${discoveredCount} / ${totalCount} PUBS`}</div>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    document.getElementById('profile-modal').classList.remove('hidden');
+  }
+
+  _hideProfileModal () {
+    document.getElementById('profile-modal').classList.add('hidden');
+  }
+
   // ── Reset ─────────────────────────────────────────────────────────────────────
 
   _showResetModal () {
@@ -406,6 +480,8 @@ class PubCryApp {
   }
 
   _doReset () {
+    this.discovered.clear();
+    this.unlockedCrawls.clear();
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) { /* ignore */ }
     // Full page reload is the cleanest way to reset all in-memory state
     window.location.reload();
