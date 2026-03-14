@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0905" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>PubCry</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- ── Header ── -->
+    <header id="header">
+      <div class="header-brand">
+        <div class="brand-icon">🍺</div>
+        <div class="brand-text">
+          <span class="brand-title">PUBCRY</span>
+          <span class="brand-sub">EXPLORE · DISCOVER · REVEAL</span>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-badge">
+          <span class="stat-value" id="pubs-discovered">0</span>
+          <span class="stat-label">PUBS</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-badge">
+          <span class="stat-value" id="tubes-discovered">0</span>
+          <span class="stat-label">TUBES</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-badge">
+          <span class="stat-value" id="areas-revealed">0%</span>
+          <span class="stat-label">MAP</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Map ── -->
+    <div id="map"></div>
+
+    <!-- ── Location overlay (awaiting GPS) ── -->
+    <div id="location-status" class="overlay-panel hidden" role="status" aria-live="polite">
+      <div class="overlay-icon pulsing">📡</div>
+      <div class="overlay-text" id="location-text">Acquiring location…</div>
+    </div>
+
+    <!-- ── Discovery timer ── -->
+    <div id="discovery-timer" class="hidden" role="status" aria-live="polite">
+      <div class="timer-crosshair">⊕</div>
+      <div class="timer-body">
+        <div class="timer-name" id="timer-name">Unknown Location</div>
+        <div class="timer-track">
+          <div class="timer-fill" id="timer-fill"></div>
+        </div>
+        <div class="timer-label" id="timer-label">0:00 / 15:00</div>
+      </div>
+    </div>
+
+    <!-- ── Discovery notification ── -->
+    <div id="discovery-notification" class="hidden" role="alert" aria-live="assertive">
+      <div class="notif-badge">AREA REVEALED</div>
+      <div class="notif-name" id="notif-name">The Crown</div>
+    </div>
+
+    <!-- ── Welcome overlay ── -->
+    <div id="welcome-overlay">
+      <div class="welcome-box">
+        <div class="welcome-logo">🍺 PUBCRY</div>
+        <p class="welcome-tagline">The map is covered in smoke.<br/>Venture out. Stay put. <strong>Reveal the world.</strong></p>
+        <ul class="welcome-rules">
+          <li>📍 Visit a pub or tube stop</li>
+          <li>⏱ Linger for <strong>15 minutes</strong></li>
+          <li>🌫️ Watch the smoke clear</li>
+        </ul>
+        <button id="start-real-btn" class="btn btn-primary">USE MY LOCATION</button>
+        <button id="start-demo-btn" class="btn btn-secondary">DEMO MODE (tap map to move)</button>
+        <p class="welcome-note">Demo mode uses a 5-second timer so you can try it instantly.</p>
+      </div>
+    </div>
+
+    <!-- ── Map controls ── -->
+    <div class="map-controls">
+      <button id="locate-btn" class="map-btn" title="Centre on me" aria-label="Centre map on my location">⊕</button>
+      <button id="reset-btn" class="map-btn map-btn-danger" title="Reset progress" aria-label="Reset all progress">↺</button>
+    </div>
+
+    <!-- ── Legend ── -->
+    <div id="legend" aria-label="Map legend">
+      <div class="legend-row">
+        <span class="legend-dot dot-pub"></span><span>Pub</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-dot dot-tube"></span><span>Tube</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-dot dot-found"></span><span>Visited</span>
+      </div>
+    </div>
+
+    <!-- ── Demo mode banner ── -->
+    <div id="demo-banner" class="hidden">DEMO MODE — Tap map to move</div>
+
+  </div><!-- #app -->
+
+  <script src="vendor/leaflet.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/fogOfWar.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
