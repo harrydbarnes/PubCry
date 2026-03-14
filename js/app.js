@@ -23,6 +23,7 @@ class PubCryApp {
     /** @type {L.Marker|null} */       this.userMarker    = null;
     /** @type {{lat:number,lng:number}|null} */ this.pos  = null;
     /** @type {Set<string>} */         this.discovered    = new Set();
+    /** @type {Array<{lat:number,lng:number}>} */ this.walkedPath = [];
     /** @type {Object.<string,{accumulated:number,location:Object}>} */
     this.timers = {};
     /** @type {boolean} */             this.demoMode      = false;
@@ -45,6 +46,7 @@ class PubCryApp {
       if (raw) {
         const state = JSON.parse(raw);
         this.discovered = new Set(state.discovered || []);
+        this.walkedPath = state.walkedPath || [];
       }
     } catch (_) { /* ignore */ }
   }
@@ -52,7 +54,8 @@ class PubCryApp {
   _saveState () {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        discovered: [...this.discovered]
+        discovered: [...this.discovered],
+        walkedPath: this.walkedPath
       }));
     } catch (_) { /* ignore */ }
   }
@@ -85,10 +88,18 @@ class PubCryApp {
   _initFog () {
     this.fog = L.fogOfWar().addTo(this.map);
 
+    // Re-apply walked path
+    for (const pt of this.walkedPath) {
+      this.fog.reveal({ lat: pt.lat, lng: pt.lng }, 50, 0.5);
+    }
+
     // Re-apply any already-discovered areas from saved state
     for (const id of this.discovered) {
       const loc = this._findById(id);
-      if (loc) this.fog.reveal({ lat: loc.lat, lng: loc.lng }, loc.revealRadius);
+      if (loc) {
+        // Clear 500m radius completely for discovered locations
+        this.fog.reveal({ lat: loc.lat, lng: loc.lng }, 500, 1);
+      }
     }
   }
 
@@ -232,6 +243,25 @@ class PubCryApp {
 
   _onPosition (lat, lng) {
     this.pos = { lat, lng };
+
+    // Track walked path
+    let shouldRecord = false;
+    if (this.walkedPath.length === 0) {
+      shouldRecord = true;
+    } else {
+      const lastPt = this.walkedPath[this.walkedPath.length - 1];
+      const dist = this._haversine(lat, lng, lastPt.lat, lastPt.lng);
+      if (dist > 10) {
+        shouldRecord = true;
+      }
+    }
+
+    if (shouldRecord) {
+      this.walkedPath.push({ lat, lng });
+      this.fog.reveal({ lat, lng }, 50, 0.5);
+      this._saveState();
+    }
+
     this._hideLocationStatus();
     this._updateUserMarker(lat, lng);
     this._startTickIfNeeded();
@@ -287,13 +317,18 @@ class PubCryApp {
 
   // ── Discovery ─────────────────────────────────────────────────────────────────
 
+  updateFog (latlng) {
+    this.fog.revealAnimated(latlng, 500, 1);
+    this._saveState();
+  }
+
   _discoverLocation (loc) {
     delete this.timers[loc.id];
     this.discovered.add(loc.id);
     this._saveState();
 
     // Animated fog reveal
-    this.fog.revealAnimated({ lat: loc.lat, lng: loc.lng }, loc.revealRadius);
+    this.updateFog({ lat: loc.lat, lng: loc.lng });
 
     // Update marker to "discovered" state
     const entry = this._markers[loc.id];
