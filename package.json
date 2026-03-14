@@ -1,0 +1,24 @@
+{
+  "name": "pubcry",
+  "version": "1.0.0",
+  "description": "Far Cry but for Pubs. Oh, and it's a map. Go somewhere new today",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harrydbarnes/PubCry.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/harrydbarnes/PubCry/issues"
+  },
+  "homepage": "https://github.com/harrydbarnes/PubCry#readme",
+  "dependencies": {
+    "leaflet": "^1.9.4"
+  }
+}
