@@ -97,6 +97,7 @@ L.FogOfWar = L.Layer.extend({
     this._revealedAreas.push(areaEntry);
 
     const tick = () => {
+      if (!this._map) return; // layer removed – stop animation
       currentRadius = Math.min(currentRadius + increment, targetRadius);
       areaEntry.radius = currentRadius;
       this._draw();
