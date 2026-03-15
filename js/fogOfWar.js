@@ -70,11 +70,13 @@ L.FogOfWar = L.Layer.extend({
    * Instantly reveal a circular area.
    * @param {L.LatLng|{lat:number,lng:number}} latlng
    * @param {number} radiusMetres
+   * @param {number} opacity
    */
-  reveal: function (latlng, radiusMetres) {
+  reveal: function (latlng, radiusMetres, opacity = 1) {
     this._revealedAreas.push({
       latlng: L.latLng(latlng),
-      radius: radiusMetres
+      radius: radiusMetres,
+      opacity: opacity
     });
     this._draw();
   },
@@ -83,14 +85,15 @@ L.FogOfWar = L.Layer.extend({
    * Animated reveal – fog "burns away" over ~600 ms.
    * @param {L.LatLng|{lat:number,lng:number}} latlng
    * @param {number} radiusMetres
+   * @param {number} opacity
    */
-  revealAnimated: function (latlng, radiusMetres) {
+  revealAnimated: function (latlng, radiusMetres, opacity = 1) {
     const targetRadius = radiusMetres;
     let currentRadius = 0;
     const steps = 40;
     const increment = targetRadius / steps;
 
-    const areaEntry = { latlng: L.latLng(latlng), radius: 0 };
+    const areaEntry = { latlng: L.latLng(latlng), radius: 0, opacity: opacity };
     this._revealedAreas.push(areaEntry);
 
     const tick = () => {
@@ -151,13 +154,14 @@ L.FogOfWar = L.Layer.extend({
       if (area.radius <= 0) continue;
       const pt  = map.latLngToContainerPoint(area.latlng);
       const rpx = this._metersToPixels(area.radius, area.latlng.lat);
+      const op  = area.opacity !== undefined ? area.opacity : 1;
 
       // Smooth gradient so the fog edge looks like drifting smoke
       const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, rpx);
-      grad.addColorStop(0,    'rgba(0,0,0,1)');
-      grad.addColorStop(0.55, 'rgba(0,0,0,0.97)');
-      grad.addColorStop(0.78, 'rgba(0,0,0,0.7)');
-      grad.addColorStop(0.90, 'rgba(0,0,0,0.3)');
+      grad.addColorStop(0,    `rgba(0,0,0,${op})`);
+      grad.addColorStop(0.55, `rgba(0,0,0,${0.97 * op})`);
+      grad.addColorStop(0.78, `rgba(0,0,0,${0.7 * op})`);
+      grad.addColorStop(0.90, `rgba(0,0,0,${0.3 * op})`);
       grad.addColorStop(1,    'rgba(0,0,0,0)');
 
       ctx.fillStyle = grad;
