@@ -38,6 +38,7 @@ class PubCryApp {
     /** @type {L.Marker|null} */       this.userMarker    = null;
     /** @type {{lat:number,lng:number}|null} */ this.pos  = null;
     /** @type {Set<string>} */         this.discovered    = new Set();
+    /** @type {Set<string>} */         this.unlockedCrawls = new Set();
     /** @type {Array<{lat:number,lng:number}>} */ this.walkedPath = [];
     /** @type {Object.<string,{accumulated:number,location:Object}>} */
     this.timers = {};
@@ -45,6 +46,7 @@ class PubCryApp {
     /** @type {number|null} */         this.watchId       = null;
     /** @type {number|null} */         this.tickId        = null;
     /** @type {string|null} */         this.activeTimerId = null;
+    /** @type {number|null} */         this._saveStateTimer = null;
     /** @type {Promise<object>|null} */  this._mobilenetModel = null;
     /** @type {Promise<object>|null} */  this._tesseractWorkerPromise = null;
 
@@ -74,7 +76,7 @@ class PubCryApp {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         discovered: [...this.discovered],
-        unlockedCrawls: [...this.unlockedCrawls]
+        unlockedCrawls: [...this.unlockedCrawls],
         walkedPath: this.walkedPath
       }));
     } catch (_) { /* ignore */ }
@@ -214,6 +216,9 @@ class PubCryApp {
     document.getElementById('locate-btn').addEventListener('click', () => {
       if (this.pos) this.map.setView([this.pos.lat, this.pos.lng], 15, { animate: true });
     });
+
+    document.getElementById('badges-btn').addEventListener('click', () => this._showProfileModal());
+    document.getElementById('profile-close-btn').addEventListener('click', () => this._hideProfileModal());
 
     document.getElementById('reset-btn').addEventListener('click', () => this._showResetModal());
 
@@ -735,5 +740,8 @@ class PubCryApp {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.pubCry = new PubCryApp();
-  window.addEventListener('beforeunload', () => window.pubCry._cleanup());
+  window.addEventListener('beforeunload', () => {
+    window.pubCry._saveState();
+    window.pubCry._cleanup();
+  });
 });
