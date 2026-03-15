@@ -316,16 +316,26 @@ class PubCryApp {
   _checkCrawls (silent = false) {
     if (typeof CRAWL_DATA === 'undefined') return;
 
+    const newlyUnlockedCrawls = [];
     for (const crawl of CRAWL_DATA) {
       if (this.unlockedCrawls.has(crawl.id)) continue;
 
       const isUnlocked = crawl.required_pubs.every(pubId => this.discovered.has(pubId));
       if (isUnlocked) {
         this.unlockedCrawls.add(crawl.id);
-        this._saveState();
-        if (!silent) {
-          setTimeout(() => this._showBadgeNotification(crawl), 4000); // Wait for location notification
-        }
+        newlyUnlockedCrawls.push(crawl);
+      }
+    }
+
+    if (newlyUnlockedCrawls.length > 0) {
+      this._saveState();
+      if (!silent) {
+        let notificationDelay = 4000; // Wait for location notification to disappear
+        const notificationDuration = 4500; // 4s display + 0.5s buffer
+        newlyUnlockedCrawls.forEach(crawl => {
+          setTimeout(() => this._showBadgeNotification(crawl), notificationDelay);
+          notificationDelay += notificationDuration;
+        });
       }
     }
   }
@@ -432,7 +442,7 @@ class PubCryApp {
     if (typeof CRAWL_DATA !== 'undefined') {
       CRAWL_DATA.forEach(crawl => {
         const isUnlocked = this.unlockedCrawls.has(crawl.id);
-        const discoveredCount = crawl.required_pubs.filter(pid => this.discovered.has(pid)).length;
+        const discoveredCount = crawl.required_pubs.reduce((count, pid) => this.discovered.has(pid) ? count + 1 : count, 0);
         const totalCount = crawl.required_pubs.length;
 
         const item = document.createElement('div');
@@ -480,8 +490,6 @@ class PubCryApp {
   }
 
   _doReset () {
-    this.discovered.clear();
-    this.unlockedCrawls.clear();
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) { /* ignore */ }
     // Full page reload is the cleanest way to reset all in-memory state
     window.location.reload();
