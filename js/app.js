@@ -17,6 +17,16 @@ const REQUIRED_MS_REAL   = 15 * 60 * 1000;
 const REQUIRED_MS_DEMO   = 5 * 1000;
 /** Storage key for persisted state */
 const STORAGE_KEY        = 'pubcry-v1';
+/** Minimum metres of movement before a new walked-path point is recorded */
+const MIN_WALK_DISTANCE_METRES          = 10;
+/** Fog reveal radius (metres) for walked path segments */
+const WALKED_PATH_REVEAL_RADIUS         = 50;
+/** Fog reveal opacity for walked path segments (partial visibility) */
+const WALKED_PATH_REVEAL_OPACITY        = 0.5;
+/** Fog reveal radius (metres) for fully-discovered locations */
+const DISCOVERED_LOCATION_REVEAL_RADIUS = 500;
+/** Minimum milliseconds between automatic state saves during walking */
+const SAVE_STATE_INTERVAL_MS            = 30 * 1000;
 
 // ── PubCryApp ─────────────────────────────────────────────────────────────────
 
@@ -28,6 +38,7 @@ class PubCryApp {
     /** @type {L.Marker|null} */       this.userMarker    = null;
     /** @type {{lat:number,lng:number}|null} */ this.pos  = null;
     /** @type {Set<string>} */         this.discovered    = new Set();
+    /** @type {Array<{lat:number,lng:number}>} */ this.walkedPath = [];
     /** @type {Object.<string,{accumulated:number,location:Object}>} */
     this.timers = {};
     /** @type {boolean} */             this.demoMode      = false;
@@ -52,6 +63,7 @@ class PubCryApp {
       if (raw) {
         const state = JSON.parse(raw);
         this.discovered = new Set(state.discovered || []);
+        this.walkedPath = state.walkedPath || [];
       }
     } catch (_) { /* ignore */ }
   }
@@ -59,7 +71,8 @@ class PubCryApp {
   _saveState () {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        discovered: [...this.discovered]
+        discovered: [...this.discovered],
+        walkedPath: this.walkedPath
       }));
     } catch (_) { /* ignore */ }
   }
@@ -92,10 +105,18 @@ class PubCryApp {
   _initFog () {
     this.fog = L.fogOfWar().addTo(this.map);
 
+    // Re-apply walked path
+    for (const pt of this.walkedPath) {
+      this.fog.reveal({ lat: pt.lat, lng: pt.lng }, WALKED_PATH_REVEAL_RADIUS, WALKED_PATH_REVEAL_OPACITY);
+    }
+
     // Re-apply any already-discovered areas from saved state
     for (const id of this.discovered) {
       const loc = this._findById(id);
-      if (loc) this.fog.reveal({ lat: loc.lat, lng: loc.lng }, loc.revealRadius);
+      if (loc) {
+        // Clear a large radius completely for discovered locations
+        this.fog.reveal({ lat: loc.lat, lng: loc.lng }, DISCOVERED_LOCATION_REVEAL_RADIUS, 1);
+      }
     }
   }
 
@@ -382,6 +403,17 @@ class PubCryApp {
 
   _onPosition (lat, lng) {
     this.pos = { lat, lng };
+
+    // Track walked path
+    const lastPt = this.walkedPath[this.walkedPath.length - 1];
+    const shouldRecord = !lastPt || this._haversine(lat, lng, lastPt.lat, lastPt.lng) > MIN_WALK_DISTANCE_METRES;
+
+    if (shouldRecord) {
+      this.walkedPath.push({ lat, lng });
+      this.fog.reveal({ lat, lng }, WALKED_PATH_REVEAL_RADIUS, WALKED_PATH_REVEAL_OPACITY);
+      this._scheduleSave();
+    }
+
     this._hideLocationStatus();
     this._updateUserMarker(lat, lng);
     this._startTickIfNeeded();
@@ -390,6 +422,18 @@ class PubCryApp {
   _startTickIfNeeded () {
     if (this.tickId !== null) return;
     this.tickId = setInterval(() => this._tick(), 1000);
+  }
+
+  /**
+   * Schedule a debounced state save so frequent position updates don't
+   * hammer localStorage. The state is always flushed on `beforeunload`.
+   */
+  _scheduleSave () {
+    if (this._saveStateTimer !== null) return;
+    this._saveStateTimer = setTimeout(() => {
+      this._saveStateTimer = null;
+      this._saveState();
+    }, SAVE_STATE_INTERVAL_MS);
   }
 
   _tick () {
@@ -437,13 +481,17 @@ class PubCryApp {
 
   // ── Discovery ─────────────────────────────────────────────────────────────────
 
+  updateFog (latlng) {
+    this.fog.revealAnimated(latlng, DISCOVERED_LOCATION_REVEAL_RADIUS, 1);
+  }
+
   _discoverLocation (loc) {
     delete this.timers[loc.id];
     this.discovered.add(loc.id);
     this._saveState();
 
     // Animated fog reveal
-    this.fog.revealAnimated({ lat: loc.lat, lng: loc.lng }, loc.revealRadius);
+    this.updateFog({ lat: loc.lat, lng: loc.lng });
 
     // Update marker to "discovered" state
     const entry = this._markers[loc.id];
