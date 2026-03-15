@@ -661,6 +661,21 @@ html, body {
   pointer-events: none;
 }
 
+/* ── Verification controls ── */
+#verify-image-input { display: none; }
+
+.verification-btn {
+  margin-top: 8px;
+  font-size: 0.8em;
+  padding: 4px 8px;
+}
+
+#verification-status {
+  margin-top: 8px;
+  font-size: 0.8em;
+  color: #ffeb3b;
+}
+
 /* ── Utility ── */
 .hidden { display: none !important; }
 
