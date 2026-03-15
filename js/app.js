@@ -67,7 +67,8 @@ class PubCryApp {
         const state = JSON.parse(raw);
         this.discovered = new Set(state.discovered || []);
         this.unlockedCrawls = new Set(state.unlockedCrawls || []);
-        this.walkedPath = state.walkedPath || [];
+        this.walkedPath = (state.walkedPath || [])
+          .filter(pt => typeof pt.lat === 'number' && typeof pt.lng === 'number');
       }
     } catch (_) { /* ignore */ }
   }
@@ -165,16 +166,17 @@ class PubCryApp {
   }
 
   _buildPopup (location, type) {
-    const found  = this.discovered.has(location.id);
-    const status = found ? 'DISCOVERED' : 'UNDISCOVERED';
-    const cls    = found ? 'status-discovered' : 'status-unknown';
+    const found   = this.discovered.has(location.id);
+    const status  = found ? 'DISCOVERED' : 'UNDISCOVERED';
+    const cls     = found ? 'status-discovered' : 'status-unknown';
+    const minutes = this.demoMode ? '5 seconds' : '15 minutes';
     return `<div class="popup-content">
       <div class="popup-icon">${type === 'pub' ? '🍺' : '🚇'}</div>
       <h3 class="popup-name">${location.name}</h3>
       <div class="popup-status ${cls}">${status}</div>
       ${location.description ? `<p class="popup-desc">${location.description}</p>` : ''}
-      ${!found ? '<p class="popup-hint">Stay nearby for ${minutes} to reveal this area</p>' : ''}
-    </div>`.replace('${minutes}', this.demoMode ? '5 seconds' : '15 minutes');
+      ${!found ? `<p class="popup-hint">Stay nearby for ${minutes} to reveal this area</p>` : ''}
+    </div>`;
   }
 
   _updateAllMarkers () {
@@ -283,6 +285,7 @@ class PubCryApp {
     if (!locationId) return;
 
     const loc = this._findById(locationId);
+    if (!loc) return;
 
     try {
       this._setVerificationStatus('Scanning image with AI...');
@@ -624,6 +627,7 @@ class PubCryApp {
 
   _showNotification (name) {
     const el = document.getElementById('discovery-notification');
+    el.querySelector('.notif-badge').textContent = 'AREA REVEALED';
     document.getElementById('notif-name').textContent = name;
     el.classList.remove('hidden');
     // Double rAF ensures the element is painted before the transition triggers
