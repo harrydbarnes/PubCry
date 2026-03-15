@@ -6,6 +6,11 @@
 
 /** Metres within which a location is considered "nearby" */
 const PROXIMITY_METRES   = 150;
+
+/** Keywords used by the AI model to identify pub-related images */
+const AI_PUB_KEYWORDS  = ["beer", "glass", "cup", "goblet", "mug", "ale", "lager", "pint"];
+/** Keywords used by OCR to validate receipt text against pub context */
+const OCR_PUB_KEYWORDS = ["pint", "ale", "lager", "pub", "bar", "drinks", "draught"];
 /** Milliseconds the user must dwell to discover a location (real mode) */
 const REQUIRED_MS_REAL   = 15 * 60 * 1000;
 /** Milliseconds for demo mode */
@@ -29,6 +34,8 @@ class PubCryApp {
     /** @type {number|null} */         this.watchId       = null;
     /** @type {number|null} */         this.tickId        = null;
     /** @type {string|null} */         this.activeTimerId = null;
+    /** @type {Promise<object>|null} */  this._mobilenetModel = null;
+    /** @type {Promise<object>|null} */  this._tesseractWorkerPromise = null;
 
     this._loadState();
     this._initMap();
@@ -197,19 +204,25 @@ class PubCryApp {
 
   // ── Image Verification ────────────────────────────────────────────────────────
 
+  _setVerificationStatus(message, duration = 0) {
+    const statusEl = document.getElementById('verification-status');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.remove('hidden');
+    if (duration > 0) {
+      setTimeout(() => statusEl.classList.add('hidden'), duration);
+    }
+  }
+
   async _handleImageVerification(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     // Show loading status
-    const statusEl = document.getElementById('verification-status');
+    this._setVerificationStatus('Verifying...');
     const verifyBtn = document.getElementById('verify-btn');
 
-    if (statusEl) {
-      statusEl.textContent = 'Verifying...';
-      statusEl.classList.remove('hidden');
-    }
-    if (verifyBtn) verifyBtn.style.display = 'none';
+    if (verifyBtn) verifyBtn.classList.add('hidden');
 
     let objectUrl = null;
     try {
@@ -227,80 +240,63 @@ class PubCryApp {
       await this._verifyImage(image);
     } catch (err) {
       console.error("Verification failed:", err);
-      if (statusEl) {
-        statusEl.textContent = 'Verification failed. Try again.';
-        setTimeout(() => statusEl.classList.add('hidden'), 3000);
-      }
+      this._setVerificationStatus('Verification failed. Try again.', 3000);
     } finally {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       // Reset input so the same file can be selected again
       event.target.value = '';
-      if (verifyBtn) verifyBtn.style.display = 'inline-block';
+      if (verifyBtn) verifyBtn.classList.remove('hidden');
     }
   }
 
   async _verifyImage(image) {
-    const statusEl = document.getElementById('verification-status');
     const locationId = this.activeTimerId;
     if (!locationId) return;
 
     const loc = this._findById(locationId);
 
     try {
-      if (statusEl) statusEl.textContent = 'Scanning image with AI...';
+      this._setVerificationStatus('Scanning image with AI...');
 
       const isPubOrPint = await this._verifyWithAI(image);
 
       if (isPubOrPint) {
-        if (statusEl) {
-          statusEl.textContent = 'AI Verification Passed!';
-          setTimeout(() => statusEl.classList.add('hidden'), 2000);
-        }
+        this._setVerificationStatus('AI Verification Passed!', 2000);
         this._discoverLocation(loc);
         return;
       }
 
       // Fallback to OCR if AI fails
-      if (statusEl) statusEl.textContent = 'Scanning receipt text...';
+      this._setVerificationStatus('Scanning receipt text...');
       const isReceipt = await this._verifyWithOCR(image, loc);
 
       if (isReceipt) {
-        if (statusEl) {
-          statusEl.textContent = 'Receipt Verification Passed!';
-          setTimeout(() => statusEl.classList.add('hidden'), 2000);
-        }
+        this._setVerificationStatus('Receipt Verification Passed!', 2000);
         this._discoverLocation(loc);
         return;
       }
 
-      if (statusEl) {
-        statusEl.textContent = 'Verification failed. Not a pint or receipt.';
-        setTimeout(() => statusEl.classList.add('hidden'), 3000);
-      }
+      this._setVerificationStatus('Verification failed. Not a pint or receipt.', 3000);
     } catch (err) {
       console.error("Verification error:", err);
-      if (statusEl) {
-        statusEl.textContent = 'Verification error occurred.';
-        setTimeout(() => statusEl.classList.add('hidden'), 3000);
-      }
+      this._setVerificationStatus('Verification error occurred.', 3000);
     }
   }
 
   async _verifyWithAI(image) {
     try {
-      // Use the pre-trained mobilenet model
-      const model = await mobilenet.load();
+      // Load model once and reuse across calls
+      if (!this._mobilenetModel) {
+        this._mobilenetModel = mobilenet.load();
+      }
+      const model = await this._mobilenetModel;
       const predictions = await model.classify(image);
-
-      const pubKeywords = ["beer", "glass", "cup", "goblet", "mug", "ale", "lager", "pint"];
 
       for (const prediction of predictions) {
         const className = prediction.className.toLowerCase();
-        for (const keyword of pubKeywords) {
-          if (className.includes(keyword)) {
-            console.log(`AI matched keyword '${keyword}' in class '${className}' (prob: ${prediction.probability})`);
-            return true;
-          }
+        if (AI_PUB_KEYWORDS.some(keyword => className.includes(keyword))) {
+          console.log(`AI matched keyword in class '${className}' (prob: ${prediction.probability})`);
+          return true;
         }
       }
       return false;
@@ -312,7 +308,12 @@ class PubCryApp {
 
   async _verifyWithOCR(image, location) {
     try {
-      const result = await Tesseract.recognize(image, 'eng');
+      // Create Tesseract worker once and reuse across calls
+      if (!this._tesseractWorkerPromise) {
+        this._tesseractWorkerPromise = Tesseract.createWorker('eng');
+      }
+      const worker = await this._tesseractWorkerPromise;
+      const result = await worker.recognize(image);
       const text = result.data.text.toLowerCase();
       console.log("OCR Extracted Text:\n", text);
 
@@ -321,34 +322,13 @@ class PubCryApp {
       const dateRegex = /\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/;
       const hasDate = dateRegex.test(text);
 
-      // 2. Check for pub names, addresses, or generic keywords
-      // Make location name lowercase and escape regex characters just in case
+      // 2. Check for pub names, descriptions, or generic keywords
       const locName = location.name.toLowerCase();
-      const locAddress = location.address ? location.address.toLowerCase() : '';
+      const locDesc = location.description ? location.description.toLowerCase() : '';
 
-      const pubKeywords = ["pint", "ale", "lager", "pub", "bar", "drinks", "draught"];
-
-      let hasKeyword = false;
-
-      // Match location name
-      if (text.includes(locName)) {
-        hasKeyword = true;
-      }
-
-      // Match location address
-      if (!hasKeyword && locAddress && text.includes(locAddress)) {
-        hasKeyword = true;
-      }
-
-      // Match generic keywords
-      if (!hasKeyword) {
-        for (const keyword of pubKeywords) {
-          if (text.includes(keyword)) {
-            hasKeyword = true;
-            break;
-          }
-        }
-      }
+      const hasKeyword = text.includes(locName) ||
+                         (locDesc && text.includes(locDesc)) ||
+                         OCR_PUB_KEYWORDS.some(keyword => text.includes(keyword));
 
       return hasDate && hasKeyword;
     } catch (error) {
@@ -533,9 +513,9 @@ class PubCryApp {
       // Check if location is a pub by seeing if it exists in PUB_DATA (timer.location may not have 'type')
       const isPub = PUB_DATA.some(p => p.id === locationId);
       if (isPub) {
-        verifyBtn.style.display = 'inline-block';
+        verifyBtn.classList.remove('hidden');
       } else {
-        verifyBtn.style.display = 'none';
+        verifyBtn.classList.add('hidden');
       }
     }
 
@@ -611,10 +591,21 @@ class PubCryApp {
   _findById (id) {
     return [...PUB_DATA, ...TUBE_DATA].find(l => l.id === id) || null;
   }
+
+  async _cleanup () {
+    if (this._tesseractWorkerPromise) {
+      try {
+        const worker = await this._tesseractWorkerPromise;
+        await worker.terminate();
+      } catch (_) { /* ignore */ }
+      this._tesseractWorkerPromise = null;
+    }
+  }
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
   window.pubCry = new PubCryApp();
+  window.addEventListener('beforeunload', () => window.pubCry._cleanup());
 });
