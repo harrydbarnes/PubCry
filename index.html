@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0a0905" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>PubCry</title>
+  <title>Pub Cry</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="vendor/leaflet.css" />
   <link rel="stylesheet" href="css/style.css" />
@@ -60,6 +60,11 @@
           <div class="timer-fill" id="timer-fill"></div>
         </div>
         <div class="timer-label" id="timer-label">0:00 / 15:00</div>
+        <div class="verification-controls">
+          <input type="file" id="verify-image-input" accept="image/*" capture="environment" />
+          <button id="verify-btn" class="btn btn-primary hidden verification-btn">Verify with Photo / Receipt</button>
+        </div>
+        <div id="verification-status" class="hidden">Verifying...</div>
       </div>
     </div>
 
@@ -110,6 +115,11 @@
   </div><!-- #app -->
 
   <script src="vendor/leaflet.js"></script>
+  <!-- AI / OCR Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" integrity="sha384-vE8hbVJ4lezako5rlvE7bY0BVzWlFhZncPlckrqNwcUQpVtgbENTgZ8TBbnPjZre" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js" integrity="sha384-oBAqwJ0tv9zzKlbIZyBhhXlEvU/PMrSMqDyOHlEZVC8xWHx4yPySuS7vRikRcYFq" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js" integrity="sha384-2BQ3U3OdKOb0Uczxqr41I9UvZkzr4V9Hv8uSzMMZAlmhsFClvdZX5wi5fDCzG+tM" crossorigin="anonymous"></script>
+
   <script src="js/data.js"></script>
   <script src="js/fogOfWar.js"></script>
   <script src="js/app.js"></script>

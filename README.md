@@ -1,2 +1,2 @@
-# PubCry
+# Pub Cry
 Far Cry but for Pubs. Oh, and it's a map. Go somewhere new today  

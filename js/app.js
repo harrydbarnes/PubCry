@@ -6,6 +6,11 @@
 
 /** Metres within which a location is considered "nearby" */
 const PROXIMITY_METRES   = 150;
+
+/** Keywords used by the AI model to identify pub-related images */
+const AI_PUB_KEYWORDS  = ["beer", "glass", "cup", "goblet", "mug", "ale", "lager", "pint"];
+/** Keywords used by OCR to validate receipt text against pub context */
+const OCR_PUB_KEYWORDS = ["pint", "ale", "lager", "pub", "bar", "drinks", "draught"];
 /** Milliseconds the user must dwell to discover a location (real mode) */
 const REQUIRED_MS_REAL   = 15 * 60 * 1000;
 /** Milliseconds for demo mode */
@@ -29,6 +34,8 @@ class PubCryApp {
     /** @type {number|null} */         this.watchId       = null;
     /** @type {number|null} */         this.tickId        = null;
     /** @type {string|null} */         this.activeTimerId = null;
+    /** @type {Promise<object>|null} */  this._mobilenetModel = null;
+    /** @type {Promise<object>|null} */  this._tesseractWorkerPromise = null;
 
     this._loadState();
     this._initMap();
@@ -185,6 +192,149 @@ class PubCryApp {
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => this._showResetModal());
+
+    const verifyBtn = document.getElementById('verify-btn');
+    const verifyInput = document.getElementById('verify-image-input');
+
+    if (verifyBtn && verifyInput) {
+      verifyBtn.addEventListener('click', () => verifyInput.click());
+      verifyInput.addEventListener('change', (e) => this._handleImageVerification(e));
+    }
+  }
+
+  // ── Image Verification ────────────────────────────────────────────────────────
+
+  _setVerificationStatus(message, duration = 0) {
+    const statusEl = document.getElementById('verification-status');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.remove('hidden');
+    if (duration > 0) {
+      setTimeout(() => statusEl.classList.add('hidden'), duration);
+    }
+  }
+
+  async _handleImageVerification(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show loading status
+    this._setVerificationStatus('Verifying...');
+    const verifyBtn = document.getElementById('verify-btn');
+
+    if (verifyBtn) verifyBtn.classList.add('hidden');
+
+    let objectUrl = null;
+    try {
+      // Load image
+      const image = new Image();
+      const imageLoadPromise = new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+      objectUrl = URL.createObjectURL(file);
+      image.src = objectUrl;
+      await imageLoadPromise;
+
+      // Pass to verification logic
+      await this._verifyImage(image);
+    } catch (err) {
+      console.error("Verification failed:", err);
+      this._setVerificationStatus('Verification failed. Try again.', 3000);
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      // Reset input so the same file can be selected again
+      event.target.value = '';
+      if (verifyBtn) verifyBtn.classList.remove('hidden');
+    }
+  }
+
+  async _verifyImage(image) {
+    const locationId = this.activeTimerId;
+    if (!locationId) return;
+
+    const loc = this._findById(locationId);
+
+    try {
+      this._setVerificationStatus('Scanning image with AI...');
+
+      const isPubOrPint = await this._verifyWithAI(image);
+
+      if (isPubOrPint) {
+        this._setVerificationStatus('AI Verification Passed!', 2000);
+        this._discoverLocation(loc);
+        return;
+      }
+
+      // Fallback to OCR if AI fails
+      this._setVerificationStatus('Scanning receipt text...');
+      const isReceipt = await this._verifyWithOCR(image, loc);
+
+      if (isReceipt) {
+        this._setVerificationStatus('Receipt Verification Passed!', 2000);
+        this._discoverLocation(loc);
+        return;
+      }
+
+      this._setVerificationStatus('Verification failed. Not a pint or receipt.', 3000);
+    } catch (err) {
+      console.error("Verification error:", err);
+      this._setVerificationStatus('Verification error occurred.', 3000);
+    }
+  }
+
+  async _verifyWithAI(image) {
+    try {
+      // Load model once and reuse across calls
+      if (!this._mobilenetModel) {
+        this._mobilenetModel = mobilenet.load();
+      }
+      const model = await this._mobilenetModel;
+      const predictions = await model.classify(image);
+
+      for (const prediction of predictions) {
+        const className = prediction.className.toLowerCase();
+        if (AI_PUB_KEYWORDS.some(keyword => className.includes(keyword))) {
+          console.log(`AI matched keyword in class '${className}' (prob: ${prediction.probability})`);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("AI scanning error:", error);
+      return false;
+    }
+  }
+
+  async _verifyWithOCR(image, location) {
+    try {
+      // Create Tesseract worker once and reuse across calls
+      if (!this._tesseractWorkerPromise) {
+        this._tesseractWorkerPromise = Tesseract.createWorker('eng');
+      }
+      const worker = await this._tesseractWorkerPromise;
+      const result = await worker.recognize(image);
+      const text = result.data.text.toLowerCase();
+      console.log("OCR Extracted Text:\n", text);
+
+      // 1. Check for dates
+      // Simple regex for common UK receipt dates: DD/MM/YY, DD/MM/YYYY, DD-MM-YY, etc.
+      const dateRegex = /\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/;
+      const hasDate = dateRegex.test(text);
+
+      // 2. Check for pub names, descriptions, or generic keywords
+      const locName = location.name.toLowerCase();
+      const locDesc = location.description ? location.description.toLowerCase() : '';
+
+      const hasKeyword = text.includes(locName) ||
+                         (locDesc && text.includes(locDesc)) ||
+                         OCR_PUB_KEYWORDS.some(keyword => text.includes(keyword));
+
+      return hasDate && hasKeyword;
+    } catch (error) {
+      console.error("OCR scanning error:", error);
+      return false;
+    }
   }
 
   _dismissWelcome () {
@@ -357,6 +507,18 @@ class PubCryApp {
     document.getElementById('timer-fill').style.width  = pct + '%';
     document.getElementById('timer-label').textContent = `${eMin}:${eSec} / ${tMin}:${tSec}`;
 
+    // Update Verification UI
+    const verifyBtn = document.getElementById('verify-btn');
+    if (verifyBtn) {
+      // Check if location is a pub by seeing if it exists in PUB_DATA (timer.location may not have 'type')
+      const isPub = PUB_DATA.some(p => p.id === locationId);
+      if (isPub) {
+        verifyBtn.classList.remove('hidden');
+      } else {
+        verifyBtn.classList.add('hidden');
+      }
+    }
+
     el.classList.remove('hidden');
   }
 
@@ -429,10 +591,21 @@ class PubCryApp {
   _findById (id) {
     return [...PUB_DATA, ...TUBE_DATA].find(l => l.id === id) || null;
   }
+
+  async _cleanup () {
+    if (this._tesseractWorkerPromise) {
+      try {
+        const worker = await this._tesseractWorkerPromise;
+        await worker.terminate();
+      } catch (_) { /* ignore */ }
+      this._tesseractWorkerPromise = null;
+    }
+  }
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
   window.pubCry = new PubCryApp();
+  window.addEventListener('beforeunload', () => window.pubCry._cleanup());
 });
