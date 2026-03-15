@@ -1,6 +1,6 @@
 'use strict';
 
-/* global L, PUB_DATA, TUBE_DATA */
+/* global L, PUB_DATA, TUBE_DATA, CRAWL_DATA */
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -49,6 +49,7 @@ class PubCryApp {
     /** @type {Promise<object>|null} */  this._tesseractWorkerPromise = null;
 
     this._loadState();
+    this._checkCrawls(true); // check for any retroactive unlocks on load
     this._initMap();
     this._initFog();
     this._initMarkers();
@@ -63,6 +64,7 @@ class PubCryApp {
       if (raw) {
         const state = JSON.parse(raw);
         this.discovered = new Set(state.discovered || []);
+        this.unlockedCrawls = new Set(state.unlockedCrawls || []);
         this.walkedPath = state.walkedPath || [];
       }
     } catch (_) { /* ignore */ }
@@ -72,6 +74,7 @@ class PubCryApp {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         discovered: [...this.discovered],
+        unlockedCrawls: [...this.unlockedCrawls]
         walkedPath: this.walkedPath
       }));
     } catch (_) { /* ignore */ }
@@ -501,6 +504,50 @@ class PubCryApp {
 
     this._showNotification(loc.name);
     this._updateStats();
+    this._checkCrawls();
+  }
+
+  _checkCrawls (silent = false) {
+    if (typeof CRAWL_DATA === 'undefined') return;
+
+    const newlyUnlockedCrawls = [];
+    for (const crawl of CRAWL_DATA) {
+      if (this.unlockedCrawls.has(crawl.id)) continue;
+
+      const isUnlocked = crawl.required_pubs.every(pubId => this.discovered.has(pubId));
+      if (isUnlocked) {
+        this.unlockedCrawls.add(crawl.id);
+        newlyUnlockedCrawls.push(crawl);
+      }
+    }
+
+    if (newlyUnlockedCrawls.length > 0) {
+      this._saveState();
+      if (!silent) {
+        let notificationDelay = 4000; // Wait for location notification to disappear
+        const notificationDuration = 4500; // 4s display + 0.5s buffer
+        newlyUnlockedCrawls.forEach(crawl => {
+          setTimeout(() => this._showBadgeNotification(crawl), notificationDelay);
+          notificationDelay += notificationDuration;
+        });
+      }
+    }
+  }
+
+  _showBadgeNotification (crawl) {
+    const el = document.getElementById('discovery-notification');
+    el.querySelector('.notif-badge').textContent = 'BADGE UNLOCKED';
+    el.querySelector('.notif-name').textContent = crawl.badge + ' ' + crawl.title;
+    el.classList.remove('hidden');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+    setTimeout(() => {
+      el.classList.remove('visible');
+      setTimeout(() => {
+        el.classList.add('hidden');
+        // Reset text
+        el.querySelector('.notif-badge').textContent = 'AREA REVEALED';
+      }, 420);
+    }, 4000);
   }
 
   // ── User marker ───────────────────────────────────────────────────────────────
@@ -590,6 +637,39 @@ class PubCryApp {
 
   _hideLocationStatus () {
     document.getElementById('location-status').classList.add('hidden');
+  }
+
+  // ── Profile / Badges UI ────────────────────────────────────────────────────────
+
+  _showProfileModal () {
+    const listEl = document.getElementById('profile-crawls-list');
+    listEl.innerHTML = ''; // clear
+
+    if (typeof CRAWL_DATA !== 'undefined') {
+      CRAWL_DATA.forEach(crawl => {
+        const isUnlocked = this.unlockedCrawls.has(crawl.id);
+        const discoveredCount = crawl.required_pubs.reduce((count, pid) => this.discovered.has(pid) ? count + 1 : count, 0);
+        const totalCount = crawl.required_pubs.length;
+
+        const item = document.createElement('div');
+        item.className = `crawl-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+        item.innerHTML = `
+          <div class="crawl-badge">${isUnlocked ? crawl.badge : '🔒'}</div>
+          <div class="crawl-info">
+            <div class="crawl-title">${crawl.title}</div>
+            <div class="crawl-desc">${crawl.description}</div>
+            <div class="crawl-progress">${isUnlocked ? 'COMPLETED' : `${discoveredCount} / ${totalCount} PUBS`}</div>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    document.getElementById('profile-modal').classList.remove('hidden');
+  }
+
+  _hideProfileModal () {
+    document.getElementById('profile-modal').classList.add('hidden');
   }
 
   // ── Reset ─────────────────────────────────────────────────────────────────────

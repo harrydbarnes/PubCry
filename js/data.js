@@ -1,4 +1,4 @@
-/* global PUB_DATA, TUBE_DATA */
+/* global PUB_DATA, TUBE_DATA, CRAWL_DATA */
 'use strict';
 
 /**
@@ -144,6 +144,143 @@ const PUB_DATA = [
     lat: 51.51169,
     lng: -0.20067,
     description: 'Notting Hill · Traditional pub with walled garden',
+  }
+
+  ,{
+    id: 'pub-southwark-brewing',
+    name: 'Southwark Brewing Co',
+    lat: 51.4988,
+    lng: -0.0910,
+    description: 'Bermondsey · Taproom on the Beer Mile',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-anker-tap',
+    name: 'The Anker Tap',
+    lat: 51.4975,
+    lng: -0.0805,
+    description: 'Bermondsey · Real ale haven',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-blue-anchor',
+    name: 'The Blue Anchor',
+    lat: 51.4908,
+    lng: -0.2295,
+    description: 'Hammersmith · Historic riverside pub',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-hawley-arms',
+    name: 'The Hawley Arms',
+    lat: 51.5413,
+    lng: -0.1458,
+    description: 'Camden · Iconic music pub, Amy Winehouse haunt',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-elephants-head',
+    name: 'The Elephant\'s Head',
+    lat: 51.5398,
+    lng: -0.1425,
+    description: 'Camden · Vintage pub with rockabilly vibes',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-brewdog-shoreditch',
+    name: 'BrewDog Shoreditch',
+    lat: 51.5255,
+    lng: -0.0768,
+    description: 'Shoreditch · Craft beer spot',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-gipsy-moth',
+    name: 'The Gipsy Moth',
+    lat: 51.4828,
+    lng: -0.0101,
+    description: 'Greenwich · Near the Cutty Sark',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-trafalgar-tavern',
+    name: 'The Trafalgar Tavern',
+    lat: 51.4845,
+    lng: -0.0039,
+    description: 'Greenwich · Victorian riverside dining',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-spaniards-inn',
+    name: 'The Spaniards Inn',
+    lat: 51.5714,
+    lng: -0.1740,
+    description: 'Hampstead Heath · Historic 16th-century pub',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-flask',
+    name: 'The Flask',
+    lat: 51.5721,
+    lng: -0.1481,
+    description: 'Highgate · Haunt of Dick Turpin',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-captain-kidd',
+    name: 'The Captain Kidd',
+    lat: 51.5057,
+    lng: -0.0573,
+    description: 'Wapping · Riverside pub named after the pirate',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-island-queen',
+    name: 'The Island Queen',
+    lat: 51.5323,
+    lng: -0.0988,
+    description: 'Islington · Ornate gin palace',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-lamb-flag',
+    name: 'The Lamb and Flag',
+    lat: 51.5122,
+    lng: -0.1257,
+    description: 'Covent Garden · Historic bare-knuckle fighting spot',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-effra-hall',
+    name: 'Effra Hall Tavern',
+    lat: 51.4582,
+    lng: -0.1085,
+    description: 'Brixton · Local legend with jazz nights',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-trinity-arms',
+    name: 'The Trinity Arms',
+    lat: 51.4608,
+    lng: -0.1118,
+    description: 'Brixton · Hidden gem with a fire pit',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-lighterman',
+    name: 'The Lighterman',
+    lat: 51.5358,
+    lng: -0.1245,
+    description: 'King\'s Cross · Canalside gastropub',
+    revealRadius: 380
+  },
+  {
+    id: 'pub-star-of-kings',
+    name: 'The Star of Kings',
+    lat: 51.5342,
+    lng: -0.1218,
+    description: 'King\'s Cross · Lively pub with DJ sets',
+    revealRadius: 380
   }
 ];
 
@@ -291,5 +428,97 @@ const TUBE_DATA = [
     lat: 51.51131,
     lng: -0.12806,
     description: 'Northern, Piccadilly',
+  }
+];
+
+
+/**
+ * Localised Badges and Crawls
+ * Represents popular London pub crawl routes.
+ */
+const CRAWL_DATA = [
+  {
+    id: 'crawl-bermondsey',
+    title: 'Bermondsey Beer Mile',
+    required_pubs: ['pub-southwark-brewing', 'pub-anker-tap'],
+    badge: '🍻',
+    description: 'Covering the taprooms from Southwark Bridge towards the arches.'
+  },
+  {
+    id: 'crawl-thames-riverside',
+    title: 'The Thames Riverside Walk',
+    required_pubs: ['pub-dove', 'pub-blue-anchor'],
+    badge: '🌊',
+    description: 'Hammersmith to Putney.'
+  },
+  {
+    id: 'crawl-historic-soho',
+    title: 'Historic Soho',
+    required_pubs: ['pub-french-house', 'pub-coach-horses'],
+    badge: '🎭',
+    description: 'Taking in the French House, Coach and Horses, and others.'
+  },
+  {
+    id: 'crawl-camden-legends',
+    title: 'Camden Lock Legends',
+    required_pubs: ['pub-hawley-arms', 'pub-elephants-head'],
+    badge: '🎸',
+    description: 'Iconic music pubs around the market.'
+  },
+  {
+    id: 'crawl-shoreditch-craft',
+    title: 'Shoreditch Craft Trail',
+    required_pubs: ['pub-wenlock-arms', 'pub-brewdog-shoreditch'],
+    badge: '🎨',
+    description: 'Modern craft beer spots around East London.'
+  },
+  {
+    id: 'crawl-greenwich-maritime',
+    title: 'Greenwich Maritime Mix',
+    required_pubs: ['pub-gipsy-moth', 'pub-trafalgar-tavern'],
+    badge: '⚓',
+    description: 'Historic taverns near the Cutty Sark.'
+  },
+  {
+    id: 'crawl-highgate-hampstead',
+    title: 'Highgate to Hampstead Heath',
+    required_pubs: ['pub-spaniards-inn', 'pub-flask'],
+    badge: '🌳',
+    description: 'Historic North London spots including The Spaniards Inn.'
+  },
+  {
+    id: 'crawl-wapping-river',
+    title: 'Wapping River Front',
+    required_pubs: ['pub-prospect-whitby', 'pub-captain-kidd'],
+    badge: '🏴‍☠️',
+    description: 'The Prospect of Whitby and Captain Kidd.'
+  },
+  {
+    id: 'crawl-angel-dalston',
+    title: 'Angel to Dalston',
+    required_pubs: ['pub-duke-cambridge', 'pub-island-queen'],
+    badge: '🛥️',
+    description: 'Trendy spots along the Regent\'s Canal.'
+  },
+  {
+    id: 'crawl-covent-garden',
+    title: 'Covent Garden Classics',
+    required_pubs: ['pub-harp', 'pub-lamb-flag'],
+    badge: '🏛️',
+    description: 'The Lamb and Flag and surrounding historic spots.'
+  },
+  {
+    id: 'crawl-brixton-market',
+    title: 'Brixton Market Mix',
+    required_pubs: ['pub-effra-hall', 'pub-trinity-arms'],
+    badge: '🎶',
+    description: 'Vibrant local spots and craft taprooms.'
+  },
+  {
+    id: 'crawl-kings-cross',
+    title: 'King\'s Cross Canal Side',
+    required_pubs: ['pub-lighterman', 'pub-star-of-kings'],
+    badge: '🛤️',
+    description: 'Regenerated spots around Granary Square.'
   }
 ];

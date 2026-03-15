@@ -736,3 +736,120 @@ html, body {
 }
 
 .btn-cancel:hover, .btn-cancel:active { color: var(--text-primary); }
+
+/* ── Profile / Badges Modal ── */
+#profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(10,9,5,0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.profile-box {
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-gold);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(200,146,42,0.15);
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(200,146,42,0.3);
+}
+
+.profile-title {
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent-gold);
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.btn-close:hover {
+  color: #fff;
+}
+
+.profile-crawls {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.crawl-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(200,146,42,0.05);
+  border: 1px solid rgba(200,146,42,0.2);
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.crawl-item.locked {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.crawl-item.unlocked {
+  background: rgba(200,146,42,0.15);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 10px rgba(200,146,42,0.2);
+}
+
+.crawl-badge {
+  font-size: 32px;
+  flex-shrink: 0;
+  text-align: center;
+  width: 48px;
+}
+
+.crawl-info {
+  flex: 1;
+}
+
+.crawl-title {
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.crawl-desc {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.crawl-progress {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-gold);
+  margin-top: 4px;
+  font-weight: 600;
+}
