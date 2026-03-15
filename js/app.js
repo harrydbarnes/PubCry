@@ -12,6 +12,16 @@ const REQUIRED_MS_REAL   = 15 * 60 * 1000;
 const REQUIRED_MS_DEMO   = 5 * 1000;
 /** Storage key for persisted state */
 const STORAGE_KEY        = 'pubcry-v1';
+/** Minimum metres of movement before a new walked-path point is recorded */
+const MIN_WALK_DISTANCE_METRES          = 10;
+/** Fog reveal radius (metres) for walked path segments */
+const WALKED_PATH_REVEAL_RADIUS         = 50;
+/** Fog reveal opacity for walked path segments (partial visibility) */
+const WALKED_PATH_REVEAL_OPACITY        = 0.5;
+/** Fog reveal radius (metres) for fully-discovered locations */
+const DISCOVERED_LOCATION_REVEAL_RADIUS = 500;
+/** Minimum milliseconds between automatic state saves during walking */
+const SAVE_STATE_INTERVAL_MS            = 30 * 1000;
 
 // ── PubCryApp ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +40,7 @@ class PubCryApp {
     /** @type {number|null} */         this.watchId       = null;
     /** @type {number|null} */         this.tickId        = null;
     /** @type {string|null} */         this.activeTimerId = null;
+    /** @type {number|null} */         this._saveStateTimer = null;
 
     this._loadState();
     this._initMap();
@@ -90,15 +101,15 @@ class PubCryApp {
 
     // Re-apply walked path
     for (const pt of this.walkedPath) {
-      this.fog.reveal({ lat: pt.lat, lng: pt.lng }, 50, 0.5);
+      this.fog.reveal({ lat: pt.lat, lng: pt.lng }, WALKED_PATH_REVEAL_RADIUS, WALKED_PATH_REVEAL_OPACITY);
     }
 
     // Re-apply any already-discovered areas from saved state
     for (const id of this.discovered) {
       const loc = this._findById(id);
       if (loc) {
-        // Clear 500m radius completely for discovered locations
-        this.fog.reveal({ lat: loc.lat, lng: loc.lng }, 500, 1);
+        // Clear a large radius completely for discovered locations
+        this.fog.reveal({ lat: loc.lat, lng: loc.lng }, DISCOVERED_LOCATION_REVEAL_RADIUS, 1);
       }
     }
   }
@@ -196,6 +207,13 @@ class PubCryApp {
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => this._showResetModal());
+
+    window.addEventListener('beforeunload', () => {
+      if (this._saveStateTimer !== null) {
+        clearTimeout(this._saveStateTimer);
+        this._saveState();
+      }
+    });
   }
 
   _dismissWelcome () {
@@ -245,21 +263,13 @@ class PubCryApp {
     this.pos = { lat, lng };
 
     // Track walked path
-    let shouldRecord = false;
-    if (this.walkedPath.length === 0) {
-      shouldRecord = true;
-    } else {
-      const lastPt = this.walkedPath[this.walkedPath.length - 1];
-      const dist = this._haversine(lat, lng, lastPt.lat, lastPt.lng);
-      if (dist > 10) {
-        shouldRecord = true;
-      }
-    }
+    const lastPt = this.walkedPath[this.walkedPath.length - 1];
+    const shouldRecord = !lastPt || this._haversine(lat, lng, lastPt.lat, lastPt.lng) > MIN_WALK_DISTANCE_METRES;
 
     if (shouldRecord) {
       this.walkedPath.push({ lat, lng });
-      this.fog.reveal({ lat, lng }, 50, 0.5);
-      this._saveState();
+      this.fog.reveal({ lat, lng }, WALKED_PATH_REVEAL_RADIUS, WALKED_PATH_REVEAL_OPACITY);
+      this._scheduleSave();
     }
 
     this._hideLocationStatus();
@@ -270,6 +280,18 @@ class PubCryApp {
   _startTickIfNeeded () {
     if (this.tickId !== null) return;
     this.tickId = setInterval(() => this._tick(), 1000);
+  }
+
+  /**
+   * Schedule a debounced state save so frequent position updates don't
+   * hammer localStorage. The state is always flushed on `beforeunload`.
+   */
+  _scheduleSave () {
+    if (this._saveStateTimer !== null) return;
+    this._saveStateTimer = setTimeout(() => {
+      this._saveStateTimer = null;
+      this._saveState();
+    }, SAVE_STATE_INTERVAL_MS);
   }
 
   _tick () {
@@ -318,8 +340,7 @@ class PubCryApp {
   // ── Discovery ─────────────────────────────────────────────────────────────────
 
   updateFog (latlng) {
-    this.fog.revealAnimated(latlng, 500, 1);
-    this._saveState();
+    this.fog.revealAnimated(latlng, DISCOVERED_LOCATION_REVEAL_RADIUS, 1);
   }
 
   _discoverLocation (loc) {
