@@ -2,9 +2,11 @@
   "name": "pubcry",
   "version": "1.0.0",
   "description": "Far Cry but for Pubs. Oh, and it's a map. Go somewhere new today",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "check": "node --check js/app.js && node --check js/data.js && node --check js/fogOfWar.js && node --check test_fog.js && node --check test_app.js",
+    "test": "node test_fog.js && node test_app.js",
+    "validate": "npm run check && npm test"
   },
   "repository": {
     "type": "git",
@@ -18,7 +20,7 @@
     "url": "https://github.com/harrydbarnes/PubCry/issues"
   },
   "homepage": "https://github.com/harrydbarnes/PubCry#readme",
-  "dependencies": {
-    "leaflet": "^1.9.4"
+  "engines": {
+    "node": ">=20"
   }
 }
