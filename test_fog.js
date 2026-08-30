@@ -132,6 +132,29 @@ test('reveal and revealAnimated entries coexist in _revealedAreas', () => {
   assert.strictEqual(fog._revealedAreas.length, 2);
 });
 
+// ── reveal collection maintenance ───────────────────────────────────────────
+
+console.log('\nreveal collection maintenance');
+
+test('replaceReveals replaces the collection in one operation', () => {
+  const fog = makeFog();
+  fog.reveal({ lat: 51.5, lng: -0.1 }, 50, 0.5);
+  fog.replaceReveals([
+    { latlng: { lat: 51.6, lng: -0.2 }, radius: 200, opacity: 1 },
+    { latlng: { lat: 51.7, lng: -0.3 }, radius: 100, opacity: 0.4 }
+  ]);
+  assert.strictEqual(fog._revealedAreas.length, 2);
+  assert.strictEqual(fog._revealedAreas[0].radius, 200);
+  assert.strictEqual(fog._revealedAreas[1].opacity, 0.4);
+});
+
+test('clearReveals removes all reveal areas', () => {
+  const fog = makeFog();
+  fog.reveal({ lat: 51.5, lng: -0.1 }, 50, 0.5);
+  fog.clearReveals();
+  assert.strictEqual(fog._revealedAreas.length, 0);
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 
 console.log(`\n${passed} passed, ${failed} failed\n`);

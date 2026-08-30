@@ -2,12 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Explore London, visit pubs and tube stops, and reveal the map around you." />
   <meta name="theme-color" content="#0a0905" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Pub Cry" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Pub Cry</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="vendor/leaflet.css" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -24,7 +28,7 @@
           <span class="brand-sub">EXPLORE · DISCOVER · REVEAL</span>
         </div>
       </div>
-      <div class="header-stats">
+      <div class="header-stats" role="group" aria-label="Discovery progress">
         <div class="stat-badge">
           <span class="stat-value" id="pubs-discovered">0</span>
           <span class="stat-label">PUBS</span>
@@ -46,25 +50,32 @@
     <div id="map"></div>
 
     <!-- ── Location overlay (awaiting GPS) ── -->
-    <div id="location-status" class="overlay-panel hidden" role="status" aria-live="polite">
-      <div class="overlay-icon pulsing">📡</div>
-      <div class="overlay-text" id="location-text">Acquiring location…</div>
+    <div id="location-status" class="overlay-panel hidden" role="region" aria-live="polite" aria-label="Location status">
+      <div class="overlay-icon pulsing" aria-hidden="true">📡</div>
+      <div class="overlay-body">
+        <div class="overlay-text" id="location-text">Acquiring location…</div>
+        <div class="location-actions">
+          <button id="retry-location-btn" class="btn btn-secondary hidden location-action-btn">TRY AGAIN</button>
+          <button id="location-demo-btn" class="btn btn-secondary hidden location-action-btn">USE DEMO MODE</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── Discovery timer ── -->
-    <div id="discovery-timer" class="hidden" role="status" aria-live="polite">
-      <div class="timer-crosshair">⊕</div>
+    <div id="discovery-timer" class="hidden" role="region" aria-labelledby="timer-name">
+      <div class="timer-crosshair" aria-hidden="true">⊕</div>
       <div class="timer-body">
         <div class="timer-name" id="timer-name">Unknown Location</div>
-        <div class="timer-track">
+        <div class="timer-track" id="timer-progress" role="progressbar" aria-label="Discovery progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 percent">
           <div class="timer-fill" id="timer-fill"></div>
         </div>
-        <div class="timer-label" id="timer-label">0:00 / 15:00</div>
+        <div class="timer-label" id="timer-label" role="timer" aria-live="off">0:00 / 15:00</div>
         <div class="verification-controls">
           <input type="file" id="verify-image-input" accept="image/*" capture="environment" />
           <button id="verify-btn" class="btn btn-primary hidden verification-btn">Verify with Photo / Receipt</button>
         </div>
-        <div id="verification-status" class="hidden">Verifying...</div>
+        <div id="verification-status" class="hidden" role="status" aria-live="polite">Verifying...</div>
+        <div class="verification-note">Images are processed on this device.</div>
       </div>
     </div>
 
@@ -75,9 +86,9 @@
     </div>
 
     <!-- ── Welcome overlay ── -->
-    <div id="welcome-overlay">
+    <div id="welcome-overlay" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
       <div class="welcome-box">
-        <div class="welcome-logo">🍺 PUBCRY</div>
+        <h1 id="welcome-title" class="welcome-logo">🍺 PUBCRY</h1>
         <p class="welcome-tagline">The map is covered in smoke.<br/>Venture out. Stay put. <strong>Reveal the world.</strong></p>
         <ul class="welcome-rules">
           <li>📍 Visit a pub or tube stop</li>
@@ -86,7 +97,7 @@
         </ul>
         <button id="start-real-btn" class="btn btn-primary">USE MY LOCATION</button>
         <button id="start-demo-btn" class="btn btn-secondary">DEMO MODE (tap map to move)</button>
-        <p class="welcome-note">Demo mode uses a 5-second timer so you can try it instantly.</p>
+        <p class="welcome-note">Live play currently covers London. Demo mode uses a 5-second timer so you can try it instantly.</p>
       </div>
     </div>
 
@@ -98,11 +109,11 @@
     </div>
 
     <!-- ── Profile / Badges Modal ── -->
-    <div id="profile-modal" class="hidden">
+    <div id="profile-modal" class="hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="profile-title">
       <div class="profile-box">
         <div class="profile-header">
-          <div class="profile-title">YOUR BADGES</div>
-          <button id="profile-close-btn" class="btn-close">×</button>
+          <h2 id="profile-title" class="profile-title">YOUR BADGES</h2>
+          <button id="profile-close-btn" class="btn-close" aria-label="Close badges">×</button>
         </div>
         <div class="profile-crawls" id="profile-crawls-list">
           <!-- Crawl badges injected here by JS -->
@@ -111,7 +122,7 @@
     </div>
 
     <!-- ── Legend ── -->
-    <div id="legend" aria-label="Map legend">
+    <div id="legend" role="group" aria-label="Map legend">
       <div class="legend-row">
         <span class="legend-dot dot-pub"></span><span>Pub</span>
       </div>
@@ -129,10 +140,6 @@
   </div><!-- #app -->
 
   <script src="vendor/leaflet.js"></script>
-  <!-- AI / OCR Dependencies -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" integrity="sha384-vE8hbVJ4lezako5rlvE7bY0BVzWlFhZncPlckrqNwcUQpVtgbENTgZ8TBbnPjZre" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js" integrity="sha384-oBAqwJ0tv9zzKlbIZyBhhXlEvU/PMrSMqDyOHlEZVC8xWHx4yPySuS7vRikRcYFq" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js" integrity="sha384-2BQ3U3OdKOb0Uczxqr41I9UvZkzr4V9Hv8uSzMMZAlmhsFClvdZX5wi5fDCzG+tM" crossorigin="anonymous"></script>
 
   <script src="js/data.js"></script>
   <script src="js/fogOfWar.js"></script>

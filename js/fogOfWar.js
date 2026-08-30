@@ -108,6 +108,22 @@ L.FogOfWar = L.Layer.extend({
     requestAnimationFrame(tick);
   },
 
+  /** Replace all reveal areas and redraw once. Useful when compacting a long path. */
+  replaceReveals: function (areas) {
+    this._revealedAreas = areas.map(area => ({
+      latlng: L.latLng(area.latlng),
+      radius: area.radius,
+      opacity: area.opacity
+    }));
+    this._draw();
+  },
+
+  /** Clear all reveal areas and redraw once. */
+  clearReveals: function () {
+    this._revealedAreas = [];
+    this._draw();
+  },
+
   // ── Internal ───────────────────────────────────────────────────────────────
 
   _reset: function () {
