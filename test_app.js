@@ -17,6 +17,7 @@ assert(app.includes('server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_D
 assert(app.includes('_loadVerificationScript'), 'verification dependencies must be loaded on demand');
 assert(app.includes('replaceReveals'), 'fog rebuilds must use the batched reveal API');
 assert(workflow.includes('needs: test'), 'Pages deployment must wait for validation');
+assert(workflow.includes("if: github.event_name != 'pull_request'"), 'Pages deployment must not run on pull requests');
 assert(workflow.includes('actions/checkout@v7'), 'checkout should use the current major release');
 assert(workflow.includes('actions/configure-pages@v6'), 'configure-pages should use the current major release');
 assert(workflow.includes('actions/upload-pages-artifact@v5'), 'upload-pages-artifact should use the current major release');
